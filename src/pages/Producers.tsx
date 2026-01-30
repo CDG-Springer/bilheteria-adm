@@ -5,10 +5,19 @@ import {
   getDocs,
   doc,
   updateDoc,
-  query,
-  where,
 } from "firebase/firestore";
-import { Search, Check, X, FileText, ExternalLink } from "lucide-react";
+import { Search, Check, X, FileText, ExternalLink, Clock, XCircle } from "lucide-react";
+import { toast } from "sonner";
+
+interface LegalRep {
+  fullName?: string;
+  docType?: string;
+  docNumber?: string;
+  birthDate?: string;
+  role?: string;
+  nationality?: string;
+  legalRepPhone?: string;
+}
 
 interface ProducerData {
   id: string;
@@ -20,14 +29,25 @@ interface ProducerData {
   documentUrl: string;
   isProducer: boolean;
   createdAt: any;
+  producerStatus?: "pending" | "approved" | "rejected";
+  producerRequestedAt?: any;
+  municipalRegistration?: string;
+  headquartersAddress?: string;
+  headquartersCity?: string;
+  headquartersState?: string;
+  headquartersZip?: string;
+  cnae?: string;
+  cnpjActive?: boolean;
+  legalRep?: LegalRep;
 }
 
 export default function Producers() {
   const [producers, setProducers] = useState<ProducerData[]>([]);
   const [pendingProducers, setPendingProducers] = useState<ProducerData[]>([]);
+  const [rejectedProducers, setRejectedProducers] = useState<ProducerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<"pending" | "approved">("pending");
+  const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
 
   useEffect(() => {
     fetchProducers();
@@ -44,11 +64,20 @@ export default function Producers() {
         }))
         .filter((u: any) => u.producerName || u.isProducer) as ProducerData[];
 
-      const approved = data.filter((p) => p.isProducer);
-      const pending = data.filter((p) => !p.isProducer && p.producerName);
+      // Filter based on new workflow fields or fallback to legacy logic
+      const approved = data.filter(
+        (p) => p.isProducer || p.producerStatus === "approved",
+      );
+      const pending = data.filter(
+        (p) =>
+          (!p.isProducer && p.producerName && !p.producerStatus) ||
+          p.producerStatus === "pending",
+      );
+      const rejected = data.filter((p) => p.producerStatus === "rejected");
 
       setProducers(approved);
       setPendingProducers(pending);
+      setRejectedProducers(rejected);
     } catch (error) {
       console.error("Error fetching producers:", error);
     } finally {
@@ -58,14 +87,22 @@ export default function Producers() {
 
   const approveProducer = async (userId: string) => {
     try {
-      await updateDoc(doc(db, "users", userId), { isProducer: true });
+      await updateDoc(doc(db, "users", userId), {
+        isProducer: true,
+        producerStatus: "approved",
+        status: "PRODUTOR ATIVO",
+      });
       const producer = pendingProducers.find((p) => p.id === userId);
       if (producer) {
         setPendingProducers((prev) => prev.filter((p) => p.id !== userId));
         setProducers((prev) => [...prev, { ...producer, isProducer: true }]);
       }
+      toast.success("Produtor aprovado", {
+        description: `${producer?.producerName || "Produtor"} pode acessar o painel de produtor.`,
+      });
     } catch (error) {
       console.error("Error approving producer:", error);
+      toast.error("Erro ao aprovar", { description: "Tente novamente." });
     }
   };
 
@@ -74,14 +111,21 @@ export default function Producers() {
 
     try {
       await updateDoc(doc(db, "users", userId), {
-        producerName: null,
-        taxId: null,
-        businessEmail: null,
-        documentUrl: null,
+        producerStatus: "rejected",
+        status: "REJEITADO",
+        isProducer: false,
       });
+      const producer = pendingProducers.find((p) => p.id === userId);
       setPendingProducers((prev) => prev.filter((p) => p.id !== userId));
+      if (producer) {
+        setRejectedProducers((prev) => [...prev, { ...producer, producerStatus: "rejected" as const }]);
+      }
+      toast.success("Solicitação rejeitada", {
+        description: "O usuário não terá acesso como produtor.",
+      });
     } catch (error) {
       console.error("Error rejecting producer:", error);
+      toast.error("Erro ao rejeitar", { description: "Tente novamente." });
     }
   };
 
@@ -96,7 +140,7 @@ export default function Producers() {
         setProducers((prev) => prev.filter((p) => p.id !== userId));
         setPendingProducers((prev) => [
           ...prev,
-          { ...producer, isProducer: false },
+          { ...producer, isProducer: false, producerStatus: "pending" },
         ]);
       }
     } catch (error) {
@@ -118,6 +162,13 @@ export default function Producers() {
       p.producerName?.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const filteredRejected = rejectedProducers.filter(
+    (p) =>
+      !search ||
+      p.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+      p.producerName?.toLowerCase().includes(search.toLowerCase()),
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -133,7 +184,7 @@ export default function Producers() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setTab("pending")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -154,6 +205,16 @@ export default function Producers() {
         >
           Aprovados ({producers.length})
         </button>
+        <button
+          onClick={() => setTab("rejected")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            tab === "rejected"
+              ? "bg-red-500/20 text-red-400"
+              : "bg-gray-800 text-gray-400 hover:text-white"
+          }`}
+        >
+          Rejeitados ({rejectedProducers.length})
+        </button>
       </div>
 
       {/* Search */}
@@ -172,7 +233,7 @@ export default function Producers() {
       </div>
 
       {/* Content */}
-      {tab === "pending" ? (
+      {tab === "pending" && (
         <div className="grid gap-4">
           {filteredPending.map((producer) => (
             <div
@@ -195,8 +256,44 @@ export default function Producers() {
                     {producer.businessEmail && (
                       <span>Comercial: {producer.businessEmail}</span>
                     )}
-                    {producer.taxId && <span>CNPJ: {producer.taxId}</span>}
+                    {producer.taxId && <span>CPF/CNPJ: {producer.taxId}</span>}
+                    {producer.producerRequestedAt && (
+                      <span className="flex items-center gap-1">
+                        <Clock size={14} />
+                        {producer.producerRequestedAt?.toDate
+                          ? new Date(producer.producerRequestedAt.toDate()).toLocaleString("pt-BR")
+                          : new Date(producer.producerRequestedAt).toLocaleString("pt-BR")}
+                      </span>
+                    )}
                   </div>
+                  {(producer.municipalRegistration ||
+                    producer.headquartersAddress ||
+                    producer.cnae ||
+                    producer.legalRep?.fullName) && (
+                    <div className="mt-3 pt-3 border-t border-gray-800 text-xs text-gray-500 space-y-1">
+                      {producer.municipalRegistration && (
+                        <p>Inscrição municipal: {producer.municipalRegistration}</p>
+                      )}
+                      {producer.headquartersAddress && (
+                        <p>
+                          Sede: {producer.headquartersAddress}
+                          {producer.headquartersCity && `, ${producer.headquartersCity}`}
+                          {producer.headquartersState && ` - ${producer.headquartersState}`}
+                        </p>
+                      )}
+                      {producer.cnae && <p>CNAE: {producer.cnae}</p>}
+                      {producer.cnpjActive === true && (
+                        <p className="text-amber-400/80">CNPJ declarado ativo</p>
+                      )}
+                      {producer.legalRep?.fullName && (
+                        <p>
+                          Representante: {producer.legalRep.fullName}
+                          {producer.legalRep.role && ` (${producer.legalRep.role})`}
+                          {producer.legalRep.docNumber && ` · ${producer.legalRep.docType?.toUpperCase()}: ${producer.legalRep.docNumber}`}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -236,7 +333,70 @@ export default function Producers() {
             </div>
           )}
         </div>
-      ) : (
+      )}
+
+      {tab === "rejected" && (
+        <div className="grid gap-4">
+          {filteredRejected.map((producer) => (
+            <div
+              key={producer.id}
+              className="bg-gray-900 rounded-xl border border-gray-800 p-6"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-semibold text-white">
+                      {producer.producerName}
+                    </h3>
+                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full flex items-center gap-1">
+                      <XCircle size={12} />
+                      Rejeitado
+                    </span>
+                  </div>
+                  <p className="text-gray-400">{producer.displayName}</p>
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                    <span>{producer.email}</span>
+                    {producer.businessEmail && (
+                      <span>Comercial: {producer.businessEmail}</span>
+                    )}
+                    {producer.taxId && <span>CPF/CNPJ: {producer.taxId}</span>}
+                    {producer.producerRequestedAt && (
+                      <span className="flex items-center gap-1">
+                        <Clock size={14} />
+                        Solicitado:{" "}
+                        {producer.producerRequestedAt?.toDate
+                          ? new Date(producer.producerRequestedAt.toDate()).toLocaleString("pt-BR")
+                          : new Date(producer.producerRequestedAt).toLocaleString("pt-BR")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {producer.documentUrl && (
+                    <a
+                      href={producer.documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+                    >
+                      <FileText size={18} />
+                      Documento
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+          {filteredRejected.length === 0 && (
+            <div className="text-center py-12 text-gray-500">
+              Nenhuma solicitação rejeitada
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "approved" && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">

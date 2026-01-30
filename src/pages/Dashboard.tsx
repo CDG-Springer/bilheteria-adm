@@ -212,7 +212,9 @@ export default function Dashboard() {
                     border: "1px solid #374151",
                     borderRadius: "8px",
                   }}
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(value || 0)
+                  }
                 />
                 <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -236,8 +238,8 @@ export default function Dashboard() {
                   outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                  label={({ name, percent }: any) =>
+                    `${name} ${((percent || 0) * 100).toFixed(0)}%`
                   }
                 >
                   {categoryData.map((_, index) => (

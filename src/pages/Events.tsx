@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Search,
@@ -10,20 +10,37 @@ import {
   Trash2,
   MapPin,
   Calendar,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface EventData {
   id: string;
   eventName: string;
   category: string;
   date: string;
+  time?: string;
   location: string;
   imageUrl: string;
+  description?: string;
   pricePistaInteira: number;
+  pricePistaMeia?: number;
+  pricePremiumInteira?: number;
+  pricePremiumMeia?: number;
+  priceVipInteira?: number;
+  priceVipMeia?: number;
+  priceCamaroteInteira?: number;
+  priceCamaroteMeia?: number;
   capacityPista: number;
+  capacityPremium?: number;
+  capacityVip?: number;
+  capacityCamarote?: number;
   soldPista: number;
+  soldPremium?: number;
+  soldVip?: number;
+  soldCamarote?: number;
   producerId: string;
-  createdAt: any;
+  createdAt?: unknown;
 }
 
 export default function Events() {
@@ -32,6 +49,10 @@ export default function Events() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [detailEvent, setDetailEvent] = useState<EventData | null>(null);
+  const [editEvent, setEditEvent] = useState<EventData | null>(null);
+  const [editForm, setEditForm] = useState<Partial<EventData>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -78,8 +99,77 @@ export default function Events() {
     try {
       await deleteDoc(doc(db, "events", eventId));
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      setFilteredEvents((prev) => prev.filter((e) => e.id !== eventId));
+      setDetailEvent((e) => (e?.id === eventId ? null : e));
+      setEditEvent((e) => (e?.id === eventId ? null : e));
+      toast.success("Evento excluído.");
     } catch (error) {
       console.error("Error deleting event:", error);
+      toast.error("Erro ao excluir evento. Tente novamente.");
+    }
+  };
+
+  const openEdit = (event: EventData) => {
+    setEditEvent(event);
+    setEditForm({
+      eventName: event.eventName,
+      category: event.category,
+      date: event.date,
+      time: event.time ?? "",
+      location: event.location,
+      imageUrl: event.imageUrl,
+      description: event.description ?? "",
+      pricePistaInteira: event.pricePistaInteira,
+      pricePistaMeia: event.pricePistaMeia,
+      capacityPista: event.capacityPista,
+      capacityPremium: event.capacityPremium,
+      capacityVip: event.capacityVip,
+      capacityCamarote: event.capacityCamarote,
+    });
+  };
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    const numKeys = ["pricePistaInteira", "pricePistaMeia", "capacityPista", "capacityPremium", "capacityVip", "capacityCamarote"];
+    setEditForm((prev) => ({
+      ...prev,
+      [name]: numKeys.includes(name) ? (value === "" ? undefined : Number(value)) : value,
+    }));
+  };
+
+  const saveEdit = async () => {
+    if (!editEvent) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        eventName: editForm.eventName,
+        category: editForm.category,
+        date: editForm.date,
+        time: editForm.time || null,
+        location: editForm.location,
+        imageUrl: editForm.imageUrl,
+        description: editForm.description || null,
+        pricePistaInteira: editForm.pricePistaInteira ?? 0,
+        pricePistaMeia: editForm.pricePistaMeia,
+        capacityPista: editForm.capacityPista ?? 0,
+        capacityPremium: editForm.capacityPremium,
+        capacityVip: editForm.capacityVip,
+        capacityCamarote: editForm.capacityCamarote,
+      };
+      await updateDoc(doc(db, "events", editEvent.id), payload);
+      setEvents((prev) =>
+        prev.map((e) => (e.id === editEvent.id ? { ...e, ...payload } : e)),
+      );
+      setFilteredEvents((prev) =>
+        prev.map((e) => (e.id === editEvent.id ? { ...e, ...payload } : e)),
+      );
+      setEditEvent(null);
+      toast.success("Evento atualizado.");
+    } catch (error) {
+      console.error("Error updating event:", error);
+      toast.error("Erro ao salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -181,15 +271,24 @@ export default function Events() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-800 flex gap-2">
-                <button className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDetailEvent(event)}
+                  className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
                   <Eye size={16} />
                   Ver
                 </button>
-                <button className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEdit(event)}
+                  className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
                   <Edit size={16} />
                   Editar
                 </button>
                 <button
+                  type="button"
                   onClick={() => deleteEvent(event.id)}
                   className="py-2 px-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
                 >
@@ -204,6 +303,283 @@ export default function Events() {
       {filteredEvents.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           Nenhum evento encontrado
+        </div>
+      )}
+
+      {/* Modal Ver detalhes */}
+      {detailEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setDetailEvent(null)}
+        >
+          <div
+            className="bg-gray-900 rounded-xl border border-gray-800 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <h2 className="text-xl font-bold text-white">Detalhes do evento</h2>
+              <button
+                type="button"
+                onClick={() => setDetailEvent(null)}
+                className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-lg overflow-hidden border border-gray-800">
+                <img
+                  src={detailEvent.imageUrl}
+                  alt={detailEvent.eventName}
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+              <div>
+                <span className="text-gray-500 block text-sm">Nome</span>
+                <p className="text-white font-semibold text-lg">{detailEvent.eventName}</p>
+              </div>
+              <div className="flex gap-4 flex-wrap">
+                <div>
+                  <span className="text-gray-500 block text-sm">Categoria</span>
+                  <span className="text-white">{detailEvent.category}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-sm">Data</span>
+                  <span className="text-white">{formatDate(detailEvent.date)}</span>
+                </div>
+                {detailEvent.time && (
+                  <div>
+                    <span className="text-gray-500 block text-sm">Horário</span>
+                    <span className="text-white">{detailEvent.time}</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="text-gray-500 block text-sm">Local</span>
+                <p className="text-white">{detailEvent.location}</p>
+              </div>
+              {detailEvent.description && (
+                <div>
+                  <span className="text-gray-500 block text-sm">Descrição</span>
+                  <p className="text-white text-sm">{detailEvent.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-800">
+                <div>
+                  <span className="text-gray-500 block text-sm">Preço Pista (inteira)</span>
+                  <span className="text-white font-semibold">{formatCurrency(detailEvent.pricePistaInteira)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block text-sm">Vendidos / Capacidade Pista</span>
+                  <span className="text-white">
+                    {detailEvent.soldPista ?? 0} / {detailEvent.capacityPista}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <span className="text-gray-500 block text-sm">ID do evento</span>
+                <span className="text-gray-400 text-xs font-mono break-all">{detailEvent.id}</span>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-800 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDetailEvent(null)}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailEvent(null);
+                  openEdit(detailEvent);
+                }}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2"
+              >
+                <Edit size={16} />
+                Editar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar */}
+      {editEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setEditEvent(null)}
+        >
+          <div
+            className="bg-gray-900 rounded-xl border border-gray-800 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <h2 className="text-xl font-bold text-white">Editar evento</h2>
+              <button
+                type="button"
+                onClick={() => setEditEvent(null)}
+                className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Nome do evento</label>
+                <input
+                  type="text"
+                  name="eventName"
+                  value={editForm.eventName ?? ""}
+                  onChange={handleEditChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Categoria</label>
+                  <select
+                    name="category"
+                    value={editForm.category ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  >
+                    <option value="Evento">Evento</option>
+                    <option value="Festival">Festival</option>
+                    <option value="Show">Show</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Data</label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={editForm.date ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Horário</label>
+                  <input
+                    type="time"
+                    name="time"
+                    value={editForm.time ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Preço Pista (inteira) R$</label>
+                  <input
+                    type="number"
+                    name="pricePistaInteira"
+                    min={0}
+                    step={0.01}
+                    value={editForm.pricePistaInteira ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Local</label>
+                <input
+                  type="text"
+                  name="location"
+                  value={editForm.location ?? ""}
+                  onChange={handleEditChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">URL da imagem</label>
+                <input
+                  type="url"
+                  name="imageUrl"
+                  value={editForm.imageUrl ?? ""}
+                  onChange={handleEditChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Descrição</label>
+                <textarea
+                  name="description"
+                  value={editForm.description ?? ""}
+                  onChange={handleEditChange}
+                  rows={3}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Capacidade Pista</label>
+                  <input
+                    type="number"
+                    name="capacityPista"
+                    min={0}
+                    value={editForm.capacityPista ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Cap. Premium</label>
+                  <input
+                    type="number"
+                    name="capacityPremium"
+                    min={0}
+                    value={editForm.capacityPremium ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Cap. VIP</label>
+                  <input
+                    type="number"
+                    name="capacityVip"
+                    min={0}
+                    value={editForm.capacityVip ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Cap. Camarote</label>
+                  <input
+                    type="number"
+                    name="capacityCamarote"
+                    min={0}
+                    value={editForm.capacityCamarote ?? ""}
+                    onChange={handleEditChange}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-800 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditEvent(null)}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={saving}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg"
+              >
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

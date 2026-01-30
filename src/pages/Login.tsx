@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { Lock, Mail, AlertCircle } from "lucide-react";
+import { Lock, Mail, AlertCircle, HelpCircle } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,7 +21,7 @@ export default function Login() {
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        email,
+        email.trim(),
         password,
       );
 
@@ -29,18 +30,23 @@ export default function Login() {
 
       if (!userDoc.exists() || !userDoc.data().isAdmin) {
         await auth.signOut();
-        setError("Acesso negado. Você não tem permissão de administrador.");
+        setError("Acesso negado. Sua conta não tem permissão de administrador. Peça a um admin para marcar isAdmin no Firestore ou use uma conta criada pelo script create-admin.");
         setLoading(false);
         return;
       }
 
       navigate("/");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";
       console.error(err);
-      if (err.code === "auth/invalid-credential") {
-        setError("Email ou senha incorretos.");
-      } else if (err.code === "auth/too-many-requests") {
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+        setError(
+          "Email ou senha incorretos. Use o mesmo email e senha do cadastro na bilheteria (se um admin já tiver marcado isAdmin para você) ou crie uma conta com: node scripts/create-admin.js seu@email.com SuaSenha"
+        );
+      } else if (code === "auth/too-many-requests") {
         setError("Muitas tentativas. Tente novamente mais tarde.");
+      } else if (code === "auth/invalid-email") {
+        setError("Formato de email inválido.");
       } else {
         setError("Erro ao fazer login. Tente novamente.");
       }
@@ -138,6 +144,42 @@ export default function Login() {
         <p className="text-center text-gray-500 text-sm mt-6">
           Sistema exclusivo para administradores
         </p>
+
+        <div className="mt-6 border-t border-gray-800 pt-6">
+          <button
+            type="button"
+            onClick={() => setShowHelp(!showHelp)}
+            className="flex items-center justify-center gap-2 w-full text-gray-400 hover:text-purple-400 text-sm transition-colors"
+          >
+            <HelpCircle size={18} />
+            {showHelp ? "Ocultar" : "Como criar minha conta de administrador?"}
+          </button>
+          {showHelp && (
+            <div className="mt-4 p-4 bg-gray-800/50 rounded-lg text-left text-sm text-gray-300 space-y-3">
+              <p>
+                O login usa <strong>Firebase Authentication</strong>. Você precisa ter um usuário criado com o mesmo email e senha que digita aqui.
+              </p>
+              <p className="font-medium">Opção 1 – Script (recomendado)</p>
+              <p className="text-gray-400">
+                Na pasta do painel, no terminal: <br />
+                <code className="block mt-1 p-2 bg-gray-900 rounded text-purple-300 text-xs break-all">
+                  npm run create-admin -- seu@email.com SuaSenha123
+                </code>
+                Ou: <code className="text-purple-300">node scripts/create-admin.js seu@email.com SuaSenha123</code>
+                <br />
+                Use depois <strong>exatamente</strong> esse email e senha nesta tela.
+              </p>
+              <p className="font-medium">Opção 2 – Cadastro na bilheteria + Firestore</p>
+              <p className="text-gray-400">
+                Cadastre-se na bilheteria (event-tickets-now). Depois, no Firebase Console → Firestore → coleção <code>users</code> → documento com o UID do seu usuário, adicione o campo <code>isAdmin: true</code>. Use aqui o mesmo email e senha da bilheteria.
+              </p>
+              <p className="font-medium">Opção 3 – Só pelo Firebase Console</p>
+              <p className="text-gray-400">
+                Authentication → Add user (email e senha). Anote o UID. Firestore → coleção <code>users</code> → Add document com esse UID como ID e campos <code>email</code>, <code>isAdmin: true</code>. Use esse email e senha aqui.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

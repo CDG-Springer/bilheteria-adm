@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Credenciais - NUNCA commitar
+*firebase*adminsdk*.json
+*-firebase-adminsdk-*.json
+.env
+.env.local
+.env.*.local

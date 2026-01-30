@@ -95,19 +95,6 @@ export default function Orders() {
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "paid":
-        return "Pago";
-      case "pending":
-        return "Pendente";
-      case "cancelled":
-        return "Cancelado";
-      default:
-        return status;
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
