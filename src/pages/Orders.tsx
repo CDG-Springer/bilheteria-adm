@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, query, where } from "firebase/firestore";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, Filter, Eye, RefreshCw } from "lucide-react";
+import { Search, Filter, Eye, RefreshCw, Ticket } from "lucide-react";
 
 interface OrderData {
   id: string;
   userId: string;
   userEmail: string;
   items: any[];
+  tickets?: string[]; // Array de códigos de ingressos
   total: number;
   status: "paid" | "pending" | "cancelled";
   paymentMethod: string;
@@ -178,7 +179,15 @@ export default function Orders() {
                   </td>
                   <td className="px-6 py-4">{order.userEmail}</td>
                   <td className="px-6 py-4">
-                    {order.items?.length || 0} item(s)
+                    <div className="flex flex-col gap-1">
+                      <span>{order.items?.length || 0} item(s)</span>
+                      {order.tickets && order.tickets.length > 0 && (
+                        <span className="text-xs text-purple-400 flex items-center gap-1">
+                          <Ticket size={12} />
+                          {order.tickets.length} ingresso(s)
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 font-medium">
                     {formatCurrency(order.total)}
@@ -205,12 +214,28 @@ export default function Orders() {
                       : "-"}
                   </td>
                   <td className="px-6 py-4">
-                    <button
-                      className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
-                      title="Ver detalhes"
-                    >
-                      <Eye size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {order.tickets && order.tickets.length > 0 && (
+                        <div className="text-xs text-purple-400 font-mono">
+                          {order.tickets.slice(0, 2).map((code, idx) => (
+                            <div key={idx} className="truncate max-w-[100px]">
+                              {code}
+                            </div>
+                          ))}
+                          {order.tickets.length > 2 && (
+                            <div className="text-gray-500">
+                              +{order.tickets.length - 2} mais
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <button
+                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white"
+                        title="Ver detalhes"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

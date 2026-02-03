@@ -89,12 +89,24 @@ export default function Dashboard() {
         }
       });
 
-      setChartData(
-        Object.entries(monthlyRevenue).map(([name, revenue]) => ({
+      // Ordenar por data (mais antigo primeiro)
+      const sortedData = Object.entries(monthlyRevenue)
+        .map(([name, revenue]) => ({
           name,
           revenue,
-        })),
-      );
+        }))
+        .sort((a, b) => {
+          // Converter nomes de meses para números para ordenação
+          const monthMap: Record<string, number> = {
+            'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6,
+            'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12
+          };
+          return (monthMap[a.name.toLowerCase()] || 0) - (monthMap[b.name.toLowerCase()] || 0);
+        });
+      
+      setChartData(sortedData.length > 0 ? sortedData : [
+        { name: "Nenhum dado", revenue: 0 }
+      ]);
 
       // Pedidos recentes
       const recentQuery = query(
@@ -201,24 +213,78 @@ export default function Dashboard() {
             Receita Mensal
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="name" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    border: "1px solid #374151",
-                    borderRadius: "8px",
-                  }}
-                  formatter={(value: number | undefined) =>
-                    formatCurrency(value || 0)
-                  }
-                />
-                <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 && chartData[0].name !== "Nenhum dado" ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={chartData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#9ca3af"
+                    tick={{ fill: "#9ca3af" }}
+                  />
+                  <YAxis 
+                    stroke="#9ca3af"
+                    tick={{ fill: "#9ca3af" }}
+                    tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div 
+                            className="bg-transparent p-2"
+                            style={{
+                              backgroundColor: "transparent",
+                              border: "none",
+                              boxShadow: "none",
+                            }}
+                          >
+                            <p className="text-white font-bold mb-1" style={{ textShadow: "0 0 8px rgba(0,0,0,0.8)" }}>
+                              {label}
+                            </p>
+                            <p 
+                              className="text-sm font-medium"
+                              style={{ 
+                                color: "#8b5cf6",
+                                textShadow: "0 0 8px rgba(0,0,0,0.8)",
+                              }}
+                            >
+                              Receita: {formatCurrency(payload[0].value as number || 0)}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                    cursor={{ fill: "rgba(139, 92, 246, 0.1)" }}
+                    wrapperStyle={{
+                      backgroundColor: "transparent",
+                      border: "none",
+                      boxShadow: "none",
+                    }}
+                    contentStyle={{
+                      backgroundColor: "transparent",
+                      border: "none",
+                      boxShadow: "none",
+                      padding: "8px",
+                    }}
+                  />
+                  <Bar 
+                    dataKey="revenue" 
+                    fill="#8b5cf6" 
+                    radius={[4, 4, 0, 0]}
+                    name="Receita"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                <p>Nenhuma receita registrada ainda.</p>
+              </div>
+            )}
           </div>
         </div>
 
