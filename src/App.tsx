@@ -9,6 +9,7 @@ import Users from "@/pages/Users";
 import Events from "@/pages/Events";
 import Orders from "@/pages/Orders";
 import Producers from "@/pages/Producers";
+import Categories from "@/pages/Categories";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="/events" element={<Events />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/producers" element={<Producers />} />
+        <Route path="/categories" element={<Categories />} />
       </Route>
 
       {/* Fallback */}

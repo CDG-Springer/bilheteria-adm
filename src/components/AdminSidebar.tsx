@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   X,
+  Tag,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +19,7 @@ const menuItems = [
   { icon: Calendar, label: "Eventos", path: "/events" },
   { icon: ShoppingCart, label: "Pedidos", path: "/orders" },
   { icon: UserCheck, label: "Produtores", path: "/producers" },
+  { icon: Tag, label: "Categorias", path: "/categories" },
 ];
 
 export default function AdminSidebar() {

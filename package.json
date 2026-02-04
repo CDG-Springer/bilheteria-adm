@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "create-categories": "node scripts/create-default-categories.js",
+    "verify-admin": "node scripts/verify-admin.js",
+    "promote-admin": "node scripts/promote-admin.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.20",
