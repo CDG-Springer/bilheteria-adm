@@ -6,6 +6,10 @@ Esta pasta contém toda a documentação do projeto **Painel Bilheteria**, organ
 
 Todos os arquivos de documentação do painel administrativo estão organizados nesta pasta única, com nomes que incluem a data de criação/modificação quando possível.
 
+## 📚 Categorias de Documentação
+
+- **[Sistema de Receita](./receita/README.md)** - Documentação completa sobre receita movimentada no sistema
+
 ## 📅 Arquivos por Data
 
 ### 2025-01-27
@@ -28,4 +32,4 @@ Todos os arquivos de documentação do painel administrativo estão organizados 
 
 ---
 
-**Última atualização:** 2025-01-27
+**Última atualização:** 2025-02-02

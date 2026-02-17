@@ -21,6 +21,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
+  ReferenceLine,
 } from "recharts";
 
 interface Stats {
@@ -89,11 +91,11 @@ export default function Dashboard() {
         }
       });
 
-      // Ordenar por data (mais antigo primeiro)
+      // Ordenar por data (mais antigo primeiro) e capitalizar nomes dos meses
       const sortedData = Object.entries(monthlyRevenue)
         .map(([name, revenue]) => ({
-          name,
-          revenue,
+          name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalizar primeira letra
+          revenue: Math.round(revenue * 100) / 100, // Arredondar para 2 casas decimais
         }))
         .sort((a, b) => {
           // Converter nomes de meses para números para ordenação
@@ -209,80 +211,138 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Chart */}
         <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Receita Mensal
-          </h3>
-          <div className="h-64">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">
+                Receita Mensal
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">
+                Total: {formatCurrency(stats.totalRevenue)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-purple-400">
+              <TrendingUp size={18} />
+            </div>
+          </div>
+          <div className="h-80">
             {chartData.length > 0 && chartData[0].name !== "Nenhum dado" ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={chartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 20, right: 20, left: 0, bottom: 10 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1} />
+                      <stop offset="50%" stopColor="#7c3aed" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.6} />
+                    </linearGradient>
+                    <linearGradient id="revenueGradientHover" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#a78bfa" stopOpacity={1} />
+                      <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.7} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke="#374151" 
+                    opacity={0.3}
+                    vertical={false}
+                  />
                   <XAxis 
                     dataKey="name" 
-                    stroke="#9ca3af"
-                    tick={{ fill: "#9ca3af" }}
+                    stroke="#6b7280"
+                    tick={{ fill: "#9ca3af", fontSize: 12, fontWeight: 500 }}
+                    tickLine={{ stroke: "#4b5563" }}
+                    axisLine={{ stroke: "#4b5563" }}
                   />
                   <YAxis 
-                    stroke="#9ca3af"
-                    tick={{ fill: "#9ca3af" }}
-                    tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                    stroke="#6b7280"
+                    tick={{ fill: "#9ca3af", fontSize: 12 }}
+                    tickLine={{ stroke: "#4b5563" }}
+                    axisLine={{ stroke: "#4b5563" }}
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) {
+                        return `R$ ${(value / 1000000).toFixed(1)}M`;
+                      }
+                      if (value >= 1000) {
+                        return `R$ ${(value / 1000).toFixed(0)}k`;
+                      }
+                      return `R$ ${value}`;
+                    }}
+                    width={60}
                   />
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
+                        const value = payload[0].value as number || 0;
+                        const percentage = stats.totalRevenue > 0 
+                          ? ((value / stats.totalRevenue) * 100).toFixed(1)
+                          : "0";
+                        
                         return (
                           <div 
-                            className="bg-transparent p-2"
+                            className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-4"
                             style={{
-                              backgroundColor: "transparent",
-                              border: "none",
-                              boxShadow: "none",
+                              backdropFilter: "blur(10px)",
                             }}
                           >
-                            <p className="text-white font-bold mb-1" style={{ textShadow: "0 0 8px rgba(0,0,0,0.8)" }}>
+                            <p className="text-white font-semibold mb-2 text-sm uppercase tracking-wide">
                               {label}
                             </p>
-                            <p 
-                              className="text-sm font-medium"
-                              style={{ 
-                                color: "#8b5cf6",
-                                textShadow: "0 0 8px rgba(0,0,0,0.8)",
-                              }}
-                            >
-                              Receita: {formatCurrency(payload[0].value as number || 0)}
-                            </p>
+                            <div className="space-y-1">
+                              <p className="text-purple-400 font-bold text-lg">
+                                {formatCurrency(value)}
+                              </p>
+                              <p className="text-gray-400 text-xs">
+                                {percentage}% do total
+                              </p>
+                            </div>
                           </div>
                         );
                       }
                       return null;
                     }}
-                    cursor={{ fill: "rgba(139, 92, 246, 0.1)" }}
-                    wrapperStyle={{
-                      backgroundColor: "transparent",
-                      border: "none",
-                      boxShadow: "none",
+                    cursor={{ 
+                      fill: "rgba(139, 92, 246, 0.15)",
+                      stroke: "#8b5cf6",
+                      strokeWidth: 2,
                     }}
-                    contentStyle={{
-                      backgroundColor: "transparent",
-                      border: "none",
-                      boxShadow: "none",
-                      padding: "8px",
-                    }}
+                    animationDuration={200}
                   />
                   <Bar 
                     dataKey="revenue" 
-                    fill="#8b5cf6" 
-                    radius={[4, 4, 0, 0]}
+                    fill="url(#revenueGradient)"
+                    radius={[8, 8, 0, 0]}
                     name="Receita"
+                    animationDuration={800}
+                    animationBegin={0}
                   />
+                  {chartData.length > 0 && (() => {
+                    const avgRevenue = stats.totalRevenue / chartData.length;
+                    return (
+                      <ReferenceLine 
+                        y={avgRevenue} 
+                        stroke="#6b7280" 
+                        strokeDasharray="5 5"
+                        opacity={0.4}
+                        label={{ 
+                          value: `Média: ${formatCurrency(avgRevenue)}`, 
+                          position: "right",
+                          fill: "#9ca3af",
+                          fontSize: 10,
+                          offset: 5,
+                        }}
+                      />
+                    );
+                  })()}
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                <p>Nenhuma receita registrada ainda.</p>
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <DollarSign size={48} className="mb-4 opacity-50" />
+                <p className="text-lg font-medium">Nenhuma receita registrada ainda.</p>
+                <p className="text-sm mt-2">Os dados aparecerão aqui quando houver pedidos pagos.</p>
               </div>
             )}
           </div>

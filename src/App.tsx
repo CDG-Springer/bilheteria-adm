@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AdminLayout from "@/components/AdminLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import Revenue from "@/pages/Revenue";
 import Users from "@/pages/Users";
 import Events from "@/pages/Events";
 import Orders from "@/pages/Orders";
@@ -46,6 +47,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/revenue" element={<Revenue />} />
         <Route path="/users" element={<Users />} />
         <Route path="/events" element={<Events />} />
         <Route path="/orders" element={<Orders />} />

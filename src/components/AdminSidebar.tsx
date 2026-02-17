@@ -9,12 +9,14 @@ import {
   Menu,
   X,
   Tag,
+  DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: DollarSign, label: "Receita", path: "/revenue" },
   { icon: Users, label: "Usuários", path: "/users" },
   { icon: Calendar, label: "Eventos", path: "/events" },
   { icon: ShoppingCart, label: "Pedidos", path: "/orders" },

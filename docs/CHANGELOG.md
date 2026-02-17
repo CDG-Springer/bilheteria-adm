@@ -1,5 +1,33 @@
 # Changelog - Painel Bilheteria
 
+## [2025-02-02] - Página de Detalhes de Receita
+
+### ✨ Nova Funcionalidade
+
+- **Página de Detalhes de Receita** - Subcategoria completa para análise de receita
+- **Rota `/revenue`** - Nova rota no painel administrativo
+- **Menu Sidebar** - Item "Receita" adicionado ao menu
+
+### Funcionalidades
+- Filtros de período (Todos, Mês, Trimestre, Ano, Customizado)
+- Cards de resumo (Receita Total, Ticket Médio, Total Pedidos, Categorias)
+- Gráficos (Receita Mensal, por Categoria, por Método de Pagamento)
+- Top 10 Produtores
+- Tabela de Pedidos Recentes
+
+### Arquivos Criados
+- `src/pages/Revenue.tsx` - Página principal de receita (700+ linhas)
+- `docs/receita/PAGINA_DETALHES_RECEITA.md` - Documentação completa
+
+### Arquivos Modificados
+- `src/App.tsx` - Adicionada rota `/revenue`
+- `src/components/AdminSidebar.tsx` - Adicionado item "Receita"
+- `src/lib/utils.ts` - Melhorada função `formatDate`
+
+**Documentação Completa:** [CHANGELOG_2025-02-02_RECEITA.md](./CHANGELOG_2025-02-02_RECEITA.md)
+
+---
+
 ## [2025-01-27] - Remoção do Botão "Criar Categorias Padrão"
 
 ### ✨ Ajustes Implementados
@@ -89,4 +117,111 @@ firebase deploy --only firestore:rules
 
 ---
 
-**Última atualização:** 2025-01-27
+## [2025-02-02] - Melhorias no Gráfico de Receita Mensal
+
+### ✨ Melhorias Visuais Implementadas
+
+- **Gradiente nas barras** - Efeito de profundidade com gradiente roxo vertical
+- **Header informativo** - Título, receita total e ícone de tendência
+- **Tooltip melhorado** - Fundo escuro, valores formatados e percentual do total
+- **Eixos otimizados** - Grid horizontal apenas, formatação inteligente (R$ 1k, R$ 1M)
+- **Barras arredondadas** - Bordas arredondadas no topo com animação suave
+- **Linha de média** - Referência visual da média mensal
+- **Estado vazio melhorado** - Ícone e mensagens informativas
+- **Formatação de dados** - Nomes dos meses capitalizados, valores arredondados
+
+### Problema Resolvido
+- Gráfico simples e pouco informativo
+- Tooltip transparente difícil de ler
+- Falta de contexto (total, média, percentuais)
+
+### Arquivos Modificados
+- `src/pages/Dashboard.tsx` - Gráfico de receita mensal completamente reformulado
+
+### Resultado
+- ✅ Design moderno e profissional
+- ✅ Informações mais ricas e contextuais
+- ✅ Melhor legibilidade e usabilidade
+- ✅ Visual alinhado com padrões modernos de dashboards
+
+### Documentação
+- [Changelog Completo](./CHANGELOG_2025-02-02.md)
+
+---
+
+## [2025-02-02] - Página de Detalhes de Receita
+
+### ✨ Nova Funcionalidade Implementada
+
+- **Página de Detalhes de Receita** - Subcategoria completa para análise de receita
+- **Rota `/revenue`** - Nova rota no painel administrativo
+- **Menu Sidebar** - Item "Receita" adicionado ao menu
+
+### Funcionalidades
+
+- ✅ **Filtros de Período** - Todos, Último Mês, Trimestre, Ano, Customizado
+- ✅ **Cards de Resumo** - Receita Total, Ticket Médio, Total Pedidos, Categorias
+- ✅ **Gráfico de Receita Mensal** - Bar Chart com gradiente roxo
+- ✅ **Receita por Categoria** - Pie Chart colorido
+- ✅ **Receita por Método de Pagamento** - Pie Chart (PIX vs Cartão)
+- ✅ **Top 10 Produtores** - Lista ordenada por receita
+- ✅ **Tabela de Pedidos Recentes** - Últimos 10 pedidos pagos
+- ✅ **Botão de Atualizar** - Refresh dos dados
+- ✅ **Botão de Exportar** - Preparado para exportação (em desenvolvimento)
+
+### Arquivos Criados
+
+- `src/pages/Revenue.tsx` - Página principal de receita (700+ linhas)
+- `docs/receita/PAGINA_DETALHES_RECEITA.md` - Documentação da página
+
+### Arquivos Modificados
+
+- `src/App.tsx` - Adicionada rota `/revenue`
+- `src/components/AdminSidebar.tsx` - Adicionado item "Receita" no menu
+- `src/lib/utils.ts` - Melhorada função `formatDate` para aceitar Date
+
+### Resultado
+
+- ✅ Página completa e funcional
+- ✅ Análise detalhada de receita
+- ✅ Múltiplas visualizações e métricas
+- ✅ Filtros em tempo real
+- ✅ Interface moderna e responsiva
+
+---
+
+## [2025-02-02] - Documentação do Sistema de Receita
+
+### ✨ Documentação Criada
+
+- **Categoria de Receita** - Documentação completa sobre receita movimentada
+- **Sistema de Receita Completo** - Guia detalhado com 12 seções
+- **README da Categoria** - Índice e guia de navegação
+
+### Conteúdo Documentado
+
+- ✅ Visão geral do sistema de receita
+- ✅ Fontes de receita (pedidos, ingressos, setores)
+- ✅ Cálculo de receita (fórmulas e métodos)
+- ✅ Armazenamento de dados (collections)
+- ✅ Visualizações (gráficos e cards)
+- ✅ Fluxo completo de receita
+- ✅ Métricas e KPIs
+- ✅ Estrutura técnica (código)
+- ✅ Exemplos práticos
+- ✅ Troubleshooting
+
+### Arquivos Criados
+
+- `docs/receita/SISTEMA_RECEITA_COMPLETO.md` - Documentação completa
+- `docs/receita/README.md` - Índice da categoria
+
+### Resultado
+
+- ✅ Documentação completa e organizada
+- ✅ Fácil localização de informações
+- ✅ Guia para desenvolvedores, gestores e analistas
+
+---
+
+**Última atualização:** 2025-02-02
