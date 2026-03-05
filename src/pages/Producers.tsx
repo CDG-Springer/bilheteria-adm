@@ -5,6 +5,8 @@ import {
   getDocs,
   doc,
   updateDoc,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { Search, Check, X, FileText, ExternalLink, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +41,7 @@ interface ProducerData {
   cnae?: string;
   cnpjActive?: boolean;
   legalRep?: LegalRep;
+  rejectionReason?: string;
 }
 
 export default function Producers() {
@@ -48,6 +51,8 @@ export default function Producers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
+  const [rejectingProducerId, setRejectingProducerId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   useEffect(() => {
     fetchProducers();
@@ -106,23 +111,49 @@ export default function Producers() {
     }
   };
 
-  const rejectProducer = async (userId: string) => {
-    if (!confirm("Tem certeza que deseja rejeitar este produtor?")) return;
+  const openRejectModal = (userId: string) => {
+    setRejectingProducerId(userId);
+    setRejectionReason("");
+  };
+
+  const closeRejectModal = () => {
+    setRejectingProducerId(null);
+    setRejectionReason("");
+  };
+
+  const rejectProducer = async () => {
+    if (!rejectingProducerId || !rejectionReason.trim()) return;
 
     try {
-      await updateDoc(doc(db, "users", userId), {
+      const producer = pendingProducers.find((p) => p.id === rejectingProducerId);
+      await updateDoc(doc(db, "users", rejectingProducerId), {
         producerStatus: "rejected",
         status: "REJEITADO",
         isProducer: false,
+        rejectionReason: rejectionReason.trim(),
       });
-      const producer = pendingProducers.find((p) => p.id === userId);
-      setPendingProducers((prev) => prev.filter((p) => p.id !== userId));
+
+      // Criar notificação para o usuário
+      await addDoc(collection(db, "notifications"), {
+        userId: rejectingProducerId,
+        type: "producer_rejected",
+        title: "Solicitação de Produtor Rejeitada",
+        message: `Sua solicitação como produtor "${producer?.producerName || ""}" foi rejeitada. Motivo: ${rejectionReason.trim()}`,
+        rejectionReason: rejectionReason.trim(),
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+      setPendingProducers((prev) => prev.filter((p) => p.id !== rejectingProducerId));
       if (producer) {
-        setRejectedProducers((prev) => [...prev, { ...producer, producerStatus: "rejected" as const }]);
+        setRejectedProducers((prev) => [
+          ...prev,
+          { ...producer, producerStatus: "rejected" as const, rejectionReason: rejectionReason.trim() },
+        ]);
       }
       toast.success("Solicitação rejeitada", {
         description: "O usuário não terá acesso como produtor.",
       });
+      closeRejectModal();
     } catch (error) {
       console.error("Error rejecting producer:", error);
       toast.error("Erro ao rejeitar", { description: "Tente novamente." });
@@ -310,7 +341,7 @@ export default function Producers() {
                     </a>
                   )}
                   <button
-                    onClick={() => rejectProducer(producer.id)}
+                    onClick={() => openRejectModal(producer.id)}
                     className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
                   >
                     <X size={18} />
@@ -370,6 +401,12 @@ export default function Producers() {
                       </span>
                     )}
                   </div>
+                  {producer.rejectionReason && (
+                    <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <p className="text-sm text-red-400 font-medium">Motivo da rejeição:</p>
+                      <p className="text-sm text-gray-300 mt-1">{producer.rejectionReason}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {producer.documentUrl && (
@@ -393,6 +430,49 @@ export default function Producers() {
               Nenhuma solicitação rejeitada
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de Rejeição */}
+      {rejectingProducerId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Rejeitar Produtor</h2>
+              <button
+                onClick={closeRejectModal}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-gray-400 mb-4">
+              Informe o motivo da rejeição. Esta mensagem será enviada ao solicitante.
+            </p>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Descreva o motivo da rejeição..."
+              rows={4}
+              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+              autoFocus
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={closeRejectModal}
+                className="px-4 py-2 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={rejectProducer}
+                disabled={!rejectionReason.trim()}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirmar Rejeição
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
