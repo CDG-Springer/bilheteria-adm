@@ -42,6 +42,7 @@ interface ProducerData {
   cnpjActive?: boolean;
   legalRep?: LegalRep;
   rejectionReason?: string;
+  freeEventsOnly?: boolean;
 }
 
 export default function Producers() {
@@ -280,6 +281,11 @@ export default function Producers() {
                     <span className="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs rounded-full">
                       Pendente
                     </span>
+                    {producer.freeEventsOnly && (
+                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                        Produtor Gratuito
+                      </span>
+                    )}
                   </div>
                   <p className="text-gray-400">{producer.displayName}</p>
                   <div className="flex flex-wrap gap-4 text-sm text-gray-500">
@@ -383,6 +389,11 @@ export default function Producers() {
                       <XCircle size={12} />
                       Rejeitado
                     </span>
+                    {producer.freeEventsOnly && (
+                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                        Produtor Gratuito
+                      </span>
+                    )}
                   </div>
                   <p className="text-gray-400">{producer.displayName}</p>
                   <div className="flex flex-wrap gap-4 text-sm text-gray-500">
@@ -486,6 +497,7 @@ export default function Producers() {
                   <th className="px-6 py-4">Responsável</th>
                   <th className="px-6 py-4">Email</th>
                   <th className="px-6 py-4">CNPJ</th>
+                  <th className="px-6 py-4">Tipo</th>
                   <th className="px-6 py-4">Ações</th>
                 </tr>
               </thead>
@@ -504,6 +516,17 @@ export default function Producers() {
                     </td>
                     <td className="px-6 py-4">{producer.taxId || "-"}</td>
                     <td className="px-6 py-4">
+                      {producer.freeEventsOnly ? (
+                        <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                          Gratuito
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
+                          Completo
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <button
                         onClick={() => revokeProducer(producer.id)}
                         className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors"
@@ -516,7 +539,7 @@ export default function Producers() {
                 {filteredApproved.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-6 py-12 text-center text-gray-500"
                     >
                       Nenhum produtor aprovado

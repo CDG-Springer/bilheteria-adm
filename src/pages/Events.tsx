@@ -19,6 +19,18 @@ import { toast } from "sonner";
 
 type EventStatus = "pending" | "approved" | "rejected";
 
+interface LotData {
+  priceInteira: number;
+  priceMeia: number;
+  capacity: number;
+  sold: number;
+  endDate?: string;
+}
+
+interface SectorData {
+  lots: LotData[];
+}
+
 interface EventData {
   id: string;
   eventName: string;
@@ -28,26 +40,53 @@ interface EventData {
   location: string;
   imageUrl: string;
   description?: string;
-  pricePistaInteira: number;
-  pricePistaMeia?: number;
-  pricePremiumInteira?: number;
-  pricePremiumMeia?: number;
-  priceVipInteira?: number;
-  priceVipMeia?: number;
-  priceCamaroteInteira?: number;
-  priceCamaroteMeia?: number;
-  capacityPista: number;
-  capacityPremium?: number;
-  capacityVip?: number;
-  capacityCamarote?: number;
-  soldPista: number;
-  soldPremium?: number;
-  soldVip?: number;
-  soldCamarote?: number;
   producerId: string;
   status?: EventStatus;
   rejectionReason?: string;
   createdAt?: unknown;
+  freeEvent?: boolean;
+  sectors?: Record<string, SectorData>;
+  // Campos legados (eventos antigos)
+  pricePistaInteira?: number;
+  capacityPista?: number;
+  soldPista?: number;
+}
+
+// Helpers para extrair dados de eventos (compativel com formato antigo e novo)
+function getEventPrice(event: EventData): number {
+  if (event.sectors) {
+    const firstSector = Object.values(event.sectors)[0];
+    if (firstSector?.lots?.[0]) {
+      return firstSector.lots[0].priceInteira ?? 0;
+    }
+  }
+  return event.pricePistaInteira ?? 0;
+}
+
+function getEventCapacity(event: EventData): number {
+  if (event.sectors) {
+    let total = 0;
+    for (const sector of Object.values(event.sectors)) {
+      for (const lot of sector.lots || []) {
+        total += lot.capacity || 0;
+      }
+    }
+    return total;
+  }
+  return event.capacityPista ?? 0;
+}
+
+function getEventSold(event: EventData): number {
+  if (event.sectors) {
+    let total = 0;
+    for (const sector of Object.values(event.sectors)) {
+      for (const lot of sector.lots || []) {
+        total += lot.sold || 0;
+      }
+    }
+    return total;
+  }
+  return event.soldPista ?? 0;
 }
 
 export default function Events() {
@@ -191,21 +230,14 @@ export default function Events() {
       location: event.location,
       imageUrl: event.imageUrl,
       description: event.description ?? "",
-      pricePistaInteira: event.pricePistaInteira,
-      pricePistaMeia: event.pricePistaMeia,
-      capacityPista: event.capacityPista,
-      capacityPremium: event.capacityPremium,
-      capacityVip: event.capacityVip,
-      capacityCamarote: event.capacityCamarote,
     });
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const numKeys = ["pricePistaInteira", "pricePistaMeia", "capacityPista", "capacityPremium", "capacityVip", "capacityCamarote"];
     setEditForm((prev) => ({
       ...prev,
-      [name]: numKeys.includes(name) ? (value === "" ? undefined : Number(value)) : value,
+      [name]: value,
     }));
   };
 
@@ -221,12 +253,6 @@ export default function Events() {
         location: editForm.location,
         imageUrl: editForm.imageUrl,
         description: editForm.description || null,
-        pricePistaInteira: editForm.pricePistaInteira ?? 0,
-        pricePistaMeia: editForm.pricePistaMeia,
-        capacityPista: editForm.capacityPista ?? 0,
-        capacityPremium: editForm.capacityPremium,
-        capacityVip: editForm.capacityVip,
-        capacityCamarote: editForm.capacityCamarote,
       };
       await updateDoc(doc(db, "events", editEvent.id), payload);
       setEvents((prev) =>
@@ -399,13 +425,17 @@ export default function Events() {
                 <div>
                   <p className="text-xs text-gray-500">A partir de</p>
                   <p className="text-lg font-bold text-white">
-                    {formatCurrency(event.pricePistaInteira)}
+                    {event.freeEvent ? (
+                      <span className="text-green-400">Gratuito</span>
+                    ) : (
+                      formatCurrency(getEventPrice(event))
+                    )}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500">Vendidos</p>
                   <p className="text-sm text-gray-300">
-                    {event.soldPista}/{event.capacityPista}
+                    {getEventSold(event)}/{getEventCapacity(event)}
                   </p>
                 </div>
               </div>
@@ -560,17 +590,54 @@ export default function Events() {
                   <p className="text-white text-sm">{detailEvent.description}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-800">
-                <div>
-                  <span className="text-gray-500 block text-sm">Preço Pista (inteira)</span>
-                  <span className="text-white font-semibold">{formatCurrency(detailEvent.pricePistaInteira)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500 block text-sm">Vendidos / Capacidade Pista</span>
-                  <span className="text-white">
-                    {detailEvent.soldPista ?? 0} / {detailEvent.capacityPista}
+              <div className="pt-2 border-t border-gray-800 space-y-3">
+                {detailEvent.freeEvent && (
+                  <span className="inline-block px-3 py-1 bg-green-500/20 text-green-400 text-sm font-medium rounded-full">
+                    Evento Gratuito
                   </span>
-                </div>
+                )}
+                {detailEvent.sectors ? (
+                  Object.entries(detailEvent.sectors).map(([key, sector]) => (
+                    <div key={key} className="space-y-2">
+                      <span className="text-gray-400 block text-sm font-medium capitalize">
+                        Setor {key}
+                      </span>
+                      {sector.lots?.map((lot, i) => (
+                        <div key={i} className="grid grid-cols-3 gap-4 pl-3 border-l-2 border-gray-700">
+                          <div>
+                            <span className="text-gray-500 block text-xs">
+                              {sector.lots.length > 1 ? `${i + 1}º Lote - Preço` : "Preço"}
+                            </span>
+                            <span className="text-white font-semibold">
+                              {detailEvent.freeEvent ? "Gratuito" : formatCurrency(lot.priceInteira)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block text-xs">Capacidade</span>
+                            <span className="text-white">{lot.capacity}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block text-xs">Vendidos</span>
+                            <span className="text-white">{lot.sold ?? 0}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-gray-500 block text-sm">Preço Pista (inteira)</span>
+                      <span className="text-white font-semibold">{formatCurrency(detailEvent.pricePistaInteira ?? 0)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block text-sm">Vendidos / Capacidade</span>
+                      <span className="text-white">
+                        {detailEvent.soldPista ?? 0} / {detailEvent.capacityPista ?? 0}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <span className="text-gray-500 block text-sm">ID do evento</span>
@@ -657,29 +724,15 @@ export default function Events() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Horário</label>
-                  <input
-                    type="time"
-                    name="time"
-                    value={editForm.time ?? ""}
-                    onChange={handleEditChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Preço Pista (inteira) R$</label>
-                  <input
-                    type="number"
-                    name="pricePistaInteira"
-                    min={0}
-                    step={0.01}
-                    value={editForm.pricePistaInteira ?? ""}
-                    onChange={handleEditChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Horário</label>
+                <input
+                  type="time"
+                  name="time"
+                  value={editForm.time ?? ""}
+                  onChange={handleEditChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Local</label>
@@ -711,52 +764,26 @@ export default function Events() {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white resize-none"
                 />
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Capacidade Pista</label>
-                  <input
-                    type="number"
-                    name="capacityPista"
-                    min={0}
-                    value={editForm.capacityPista ?? ""}
-                    onChange={handleEditChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
-                  />
+              {/* Setores e lotes (somente leitura) */}
+              {editEvent?.sectors && (
+                <div className="space-y-2">
+                  <label className="block text-sm text-gray-400 mb-1">Setores e Lotes</label>
+                  {Object.entries(editEvent.sectors).map(([key, sector]) => (
+                    <div key={key} className="bg-gray-800 rounded-lg p-3 space-y-1">
+                      <span className="text-white font-medium capitalize text-sm">Setor {key}</span>
+                      {sector.lots?.map((lot, i) => (
+                        <div key={i} className="flex gap-4 text-xs text-gray-400 pl-2">
+                          <span>{sector.lots.length > 1 ? `${i + 1}º Lote` : "Lote"}</span>
+                          <span>Preço: {editEvent.freeEvent ? "Gratuito" : formatCurrency(lot.priceInteira)}</span>
+                          <span>Cap: {lot.capacity}</span>
+                          <span>Vendidos: {lot.sold ?? 0}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <p className="text-xs text-gray-500">Os preços e capacidades dos lotes são definidos pelo produtor.</p>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Cap. Premium</label>
-                  <input
-                    type="number"
-                    name="capacityPremium"
-                    min={0}
-                    value={editForm.capacityPremium ?? ""}
-                    onChange={handleEditChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Cap. VIP</label>
-                  <input
-                    type="number"
-                    name="capacityVip"
-                    min={0}
-                    value={editForm.capacityVip ?? ""}
-                    onChange={handleEditChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Cap. Camarote</label>
-                  <input
-                    type="number"
-                    name="capacityCamarote"
-                    min={0}
-                    value={editForm.capacityCamarote ?? ""}
-                    onChange={handleEditChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white"
-                  />
-                </div>
-              </div>
+              )}
             </div>
             <div className="p-6 border-t border-gray-800 flex justify-end gap-2">
               <button
